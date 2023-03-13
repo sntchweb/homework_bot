@@ -12,3 +12,7 @@ class HwHaveNoNameError(Exception):
 
 class SendMessageError(Exception):
     """Ошибка отправки сообщения в Telegram."""
+
+
+class JsonDecodeError(Exception):
+    """Ошибка преобразования к типу данных Python."""

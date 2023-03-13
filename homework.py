@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import sys
@@ -9,27 +10,26 @@ import telegram
 from dotenv import load_dotenv
 
 from exceptions import (HwHaveNoNameError, HwHaveNoStatusError,
-                        NoConnectionToAPIError, SendMessageError)
-
+                        JsonDecodeError, NoConnectionToAPIError,
+                        SendMessageError)
 
 load_dotenv()
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    filename='homework.log',
-    encoding='utf-8',
-    filemode='a',
-    format='<%(asctime)s> [%(levelname)s] %(message)s'
-)
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler(stream=sys.stdout)
+console_handler = logging.StreamHandler(stream=sys.stdout)
+file_handler = logging.FileHandler(
+    filename=f'{__file__}.log',
+    mode='a',
+    encoding='utf-8'
+)
 formatter = logging.Formatter(
     '<%(asctime)s> [%(levelname)s] %(message)s'
 )
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+console_handler.setFormatter(formatter)
+file_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+logger.addHandler(file_handler)
 
 PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
@@ -57,12 +57,18 @@ UNKNOWN_STATUS_ERROR = ('API возвратило недокументирова
                         'работы или работу без статуса!')
 SEND_MESSAGE_ERROR = 'Ошибка при отправке сообщения в Telegram!'
 SUCCESS_SENT_MESSAGE = 'Бот успешно отправил сообщение в Telegram!'
+DECODE_ERROR = 'Ошибка преобразования к типу данных Python!'
+HW_HAVE_NO_STATUS = 'Домашнему заданию еще не присвоен статус!'
 
 
 def check_tokens() -> None:
     """Проверка доступности переменных окружения."""
-    if not all([PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]):
-        logger.critical(NO_TOKEN_ERROR)
+    empty_tokens = {}
+    for token in ['PRACTICUM_TOKEN', 'TELEGRAM_TOKEN', 'TELEGRAM_CHAT_ID']:
+        if globals().get(token) is None:
+            empty_tokens[token] = None
+    if len(empty_tokens) != 0:
+        logger.critical(f'{NO_TOKEN_ERROR}. {empty_tokens}')
         sys.exit(NO_TOKEN_ERROR)
 
 
@@ -75,9 +81,15 @@ def get_api_answer(timestamp: int) -> dict:
             params={'from_date': timestamp}
         )
         if homework_response.status_code != HTTPStatus.OK:
+            logger.error(UNAVAILABLE_ENDPIONT_ERROR)
             raise NoConnectionToAPIError(UNAVAILABLE_ENDPIONT_ERROR)
-        logger.info(AVAILABLE_ENDPOINT_MESSAGE)
-        return homework_response.json()
+        else:
+            try:
+                return homework_response.json()
+            except json.JSONDecodeError:
+                raise JsonDecodeError(DECODE_ERROR)
+            finally:
+                logger.info(AVAILABLE_ENDPOINT_MESSAGE)
     except requests.exceptions.RequestException as err:
         logger.error(f'{UNAVAILABLE_ENDPIONT_ERROR}. Ошибка: {err}')
 
@@ -108,10 +120,9 @@ def send_message(bot: telegram.Bot, message: str) -> None:
     """Отправка сообщения в Telegram."""
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
-    except Exception as error:
-        error_message = (f'{SEND_MESSAGE_ERROR}. Ошибка: "{error}".')
-        logger.error(error_message)
-        raise SendMessageError(error_message)
+    except telegram.TelegramError:
+        logger.error(SEND_MESSAGE_ERROR)
+        raise SendMessageError(SEND_MESSAGE_ERROR)
     else:
         logger.debug(SUCCESS_SENT_MESSAGE)
 
@@ -126,9 +137,8 @@ def main():
         try:
             api_answer = get_api_answer(timestamp)
             check_response(api_answer)
-            no_status_message = 'Домашнему заданию еще не присвоен статус!'
-            if len(api_answer.get('homeworks', no_status_message)) == 0:
-                logger.warning(no_status_message)
+            if len(api_answer.get('homeworks', HW_HAVE_NO_STATUS)) == 0:
+                logger.warning(HW_HAVE_NO_STATUS)
                 time.sleep(0)  # pytest не проходит без этой строки
             else:
                 previous_hw_status = parse_status(
