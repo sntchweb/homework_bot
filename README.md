@@ -5,10 +5,10 @@
 Логирует свою работу и сообщает об ошибках сообщением в Telegram.
 
 ## Как запустить проект:
-Установите `Python 3.8`.
-Склонируйте репозиторий `git clone git@github.com:sntchweb/homework_bot.git`
-Создайте виртуальное окружение `python -m venv env`.
-Активируйте виртуальное окружение: `source env/bin/activate (Linux), env\Scripts\activate (Windows).`
-Установите зависимости: `pip install -r requirements.txt`.
-Создайте файл `.env`, в котором укажите необходимые переменные окружения: `PRACTICUM_TOKEN, TELEGRAM_TOKEN и TELEGRAM_CHAT_ID`.
-Запустите бота: `python homework.py`.
+Установите `Python 3.8`.  
+Склонируйте репозиторий `git clone git@github.com:sntchweb/homework_bot.git`.  
+Создайте виртуальное окружение `python -m venv env`.  
+Активируйте виртуальное окружение: `source env/bin/activate (Linux), env\Scripts\activate (Windows)`.  
+Установите зависимости: `pip install -r requirements.txt`.  
+Создайте файл `.env`, в котором укажите необходимые переменные окружения: `PRACTICUM_TOKEN, TELEGRAM_TOKEN и TELEGRAM_CHAT_ID`.  
+Запустите бота: `python homework.py`.  
